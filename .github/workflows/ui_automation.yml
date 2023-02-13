@@ -1,0 +1,58 @@
+name: Run Mobile Automation
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: "Environments: dev / staging"
+        required: true
+        options:
+          - dev
+          - staging
+        default: "staging"
+      device:
+        type: choice
+        description: "Devices: Samsung S20 / iPhone 14 Pro"
+        required: true
+        options:
+          - android
+          - ios
+        default: "android"
+      test-type:
+        type: choice
+        description: "Test types: smoke / regression"
+        required: true
+        options:
+          - smoke
+          - regression
+        default: "smoke"
+
+jobs:
+  run-tests:
+    name: Build packages & run tests
+    runs-on: ubuntu-latest
+    env:
+      DEFAULT_DEVICE: android
+      DEFAULT_TYPE: smoke
+      BROWSERSTACK_USER: ${{ secrets.BROWSERSTACK_USER }}
+      BROWSERSTACK_KEY: ${{ secrets.BROWSERSTACK_KEY }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ">=16.0.0"
+
+      - name: Install all packages
+        if: always()
+        run: yarn
+
+      - name: BrowserStack - run "${{ github.event.inputs.test-type }}" tests, on "${{ github.event.inputs.environment }}" env, on "${{ github.event.inputs.device }}" device
+        if: always()
+        run: |
+          export TEST_TYPE=${{ github.event.inputs.test-type }}
+          npm run lt:mobile mobile-appium-automation/config/wdio.bs.${{ github.event.inputs.device }}.${{ github.event.inputs.environment }}.conf.js --cucumberOpts.tagExpression \"@${{ github.event.inputs.test-type }}\"
